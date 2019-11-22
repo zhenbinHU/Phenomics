@@ -1,0 +1,65 @@
+# growth model using logistical regression
+gg<-ggplot()+xlim(0,125)+ylim(0,500)+ylab("Plant height (cm)")+xlab("Days after planting (DAP)")
+gg<-gg+theme(axis.title.y = element_text(size = rel(1.8), angle = 90))
+gg<-gg+theme(axis.title.x = element_text(size = rel(1.8), angle = 360))
+gg<-gg+theme(axis.text= element_text(angle = 360, hjust = 1, size=15))
+G.model_parameter<-NULL
+for(i in 1:nrow(PH)){
+    height<-as.numeric(PH[i,c(2:ncol(PH))])
+    order<-which(height<=height[ncol(PH)-1])
+    height<-height[order]
+    day<-time[order]
+    po<-round(min(height))
+    k<-round(max(height))+10
+    mmModel<-nlsLM(height~K/(1+exp(Po+r*day)),start=list(Po=po,r=-0.2,K=k)) 
+    g.po<-as.numeric(coef(mmModel)[1])
+    g.r<-as.numeric(coef(mmModel)[2])
+    g.k<-as.numeric(coef(mmModel)[3]) 
+    g<-as.character(PH$Group.1[i]) 
+    G.model_parameter<-rbind(G.model_parameter,c(g,g.po,g.r,g.k)) 
+    x<- seq(0, max(day)+10, length=100)
+    y <- predict(mmModel, list(day=x))
+    dat_tmp<-data.frame(y,x)
+    gg<-gg+geom_line(data=dat_tmp,aes(x=x,y=y),alpha=0.3)
+}
+
+png("Plant_height_growth_curve_2016.png",width=9,height=6,units="in",res=600,type="cairo")
+gg
+dev.off()
+
+# extract growth rate using dirivate
+gg1<-ggplot()+xlim(0,125)+ylim(0,13)+ylab(expression(paste("Growth rate (cm ",d^-1,")")))+xlab("Days after planting (DAP)")
+gg1<-gg1+theme(axis.title.y = element_text(size = rel(1.8), angle = 90))
+gg1<-gg1+theme(axis.title.x = element_text(size = rel(1.8), angle = 360))
+gg1<-gg1+theme(axis.text= element_text(angle = 360, hjust = 1, size=15))
+
+Max.growth.point<-NULL 
+Growth_rate<-NULL
+for(i in 1:nrow(PH)){
+	  height<-as.numeric(PH[i,c(2:ncol(PH))])
+    order<-which(height<=height[ncol(PH)-1])
+    height<-height[order]
+    day<-time[order]
+    po<-round(min(height))
+    k<-round(max(height))+10
+    mmModel<-nlsLM(height~K/(1+exp(Po+r*day)),start=list(Po=po,r=-0.2,K=k)) 
+	  Po_model<-as.numeric(coef(mmModel)[1])
+	  r_model<-as.numeric(coef(mmModel)[2])
+	  K_model<-as.numeric(coef(mmModel)[3])
+	  dx<-deriv(y~K_model/(1+exp(Po_model+r_model*x)),"x",func=T)
+	  x<-1:125
+	  tmp <-dx(x)
+	  y<-attr(tmp,"gradient")
+    y.max<-max(y)
+    x.max<-x[which.max(y)]
+	  g<-as.character(PH$Group.1[i])
+	  Max.growth.point<-rbind(Max.growth.point,c(g,y.max,x.max))
+    dat_tmp<-data.frame(y,x)
+    names(dat_tmp)<-c("y","x")
+	  gg1<-gg1+geom_line(data=dat_tmp,aes(x=x,y=y),alpha=0.3)
+    Growth_rate<-rbind(Growth_rate,t(y))
+	}
+
+png("Absolute_growth_rate_2016.png",width=9,height=6,units="in",res=600,type="cairo")
+gg1
+dev.off()
